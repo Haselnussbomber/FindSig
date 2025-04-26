@@ -1,0 +1,62 @@
+name: Build Project
+
+on:
+  push:
+    paths-ignore:
+      - .editorconfig
+      - .gitattributes
+      - .github/**
+      - .gitignore
+      - CHANGELOG.md
+      - LICENSE
+      - README.md
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore --locked-mode
+
+      - name: Build
+        run: dotnet publish --os win --arch x64 -p:PublishSingleFile=true -p:PublishReadyToRun=true --sc false
+
+      - name: Upload Build Artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          path: bin/Release/win-x64/publish/*
+
+  release:
+    name: Release
+    needs: build
+    if: success() && startsWith(github.ref, 'refs/tags/v') && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+
+      - name: Set repo name as output
+        id: repo_name
+        run: echo "repo_name=${GITHUB_REPOSITORY##*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.repo_name.outputs.repo_name }} ${{ github.ref_name }}
+          files: artifact/*
