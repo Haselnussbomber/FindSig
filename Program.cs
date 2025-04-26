@@ -2,7 +2,7 @@
 
 if (args.Length < 1)
 {
-    Console.WriteLine("Usage: FindSig <signature>");
+    Console.WriteLine("Usage: FindSig \"<signature>\"");
     return;
 }
 
